@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>合理調整遊戲｜串接檢查</title>
+<style>
+:root{color-scheme:light;font-family:"PingFang TC","Microsoft JhengHei",system-ui,sans-serif;color:#173e3c;background:#f8f6ef}*{box-sizing:border-box}body{margin:0;padding:34px 18px}main{max-width:780px;margin:auto}h1{font-size:clamp(26px,5vw,38px);line-height:1.4;margin:8px 0 12px}h2{font-size:21px;margin:0 0 14px}p{line-height:1.8;margin:10px 0}.eyebrow{font-size:13px;letter-spacing:.15em;color:#5d7169}.panel{background:#fffefa;border:1px solid #d7ded6;border-radius:18px;padding:24px;margin:22px 0}.muted{color:#566a63;font-size:14px}dl{margin:0}.check{padding:14px 0;border-bottom:1px solid #e6e9e0}.check:last-child{border:0}.check dt{font-weight:700;line-height:1.7}.check dd{margin:4px 0 0;line-height:1.75;overflow-wrap:anywhere;white-space:pre-wrap;font-size:15px}.ok{color:#216447}.bad{color:#a13532}.warn{color:#86610c}.pending{color:#65746c}button,a.button{font:inherit;border-radius:10px;padding:12px 18px;cursor:pointer;border:1px solid #173e3c;background:#173e3c;color:#fff;text-decoration:none;display:inline-block;line-height:1.5}button:disabled{opacity:.5;cursor:not-allowed}button.secondary{color:#173e3c;background:transparent}button:focus-visible,a:focus-visible,textarea:focus-visible{outline:3px solid #bd8455;outline-offset:4px}.actions{display:flex;gap:12px;flex-wrap:wrap;margin-top:16px}.result{white-space:pre-wrap;line-height:1.8;border-radius:10px;background:#f2f4ec;padding:16px;margin:15px 0;overflow-wrap:anywhere}textarea{font:14px/1.75 ui-monospace,monospace;resize:vertical;width:100%;min-height:190px;background:#fff;border:1px solid #adbdb0;border-radius:10px;padding:12px;color:#173e3c;margin-top:8px}code{background:#eff2e9;padding:3px 6px;border-radius:4px;overflow-wrap:anywhere}label{font-weight:700}details{margin:18px 0}summary{cursor:pointer;line-height:1.7}iframe{width:100%;height:300px;border:1px solid #bccbbf;border-radius:10px;margin-top:12px;background:white}.note{padding-left:14px;border-left:3px solid #d3a171}footer{font-size:13px;color:#66756c;margin:24px 0}a{color:#225f50}[hidden]{display:none!important}@media(max-width:500px){body{padding:22px 12px}.panel{padding:18px}.actions button{width:100%}}
+</style>
+</head>
+<body>
+<main>
+<p class="eyebrow">管理者工具 · CHECK 1.0</p>
+<h1>合理調整遊戲<br>串接檢查</h1>
+<p>不用重玩遊戲，也不用開主控台。這頁會檢查同一資料夾的設定與程式；按下測試按鈕，才會送出一筆測試紀錄。</p>
+<section class="panel" aria-labelledby="settings-heading">
+<h2 id="settings-heading">1. 目前網站的設定</h2>
+<dl id="checks" aria-live="polite"></dl>
+<p class="muted">以下網域是這次測試送出的來源。Apps Script 的 <code>ALLOWED_ORIGINS</code> 必須包含它。</p>
+<code id="required-origin">尚未取得</code>
+</section>
+<section class="panel" aria-labelledby="send-heading">
+<h2 id="send-heading">2. 送出一筆測試</h2>
+<p>稱呼固定為「串接測試」、紀錄類型固定為「測試」，其餘背景留白。案例選擇由程式填入，省思及意見會註明為測試資料。</p>
+<p class="muted">同一頁重試會使用相同作答編號。請等本次結果出現後，再決定是否重試。</p>
+<button id="send-test" type="button" disabled>送出一筆測試紀錄</button>
+<div id="result" class="result" role="status" aria-live="polite">正在檢查設定，尚未送出。</div>
+<details id="reply-details" hidden><summary>查看收件頁面回覆</summary><p class="muted">這是收件端實際回覆的頁面。如果出現登入或存取限制，可一併截圖；此處不會代你登入。</p><div id="reply-frame"></div></details>
+</section>
+<section class="panel" aria-labelledby="report-heading">
+<h2 id="report-heading">3. 回傳這份檢查結果</h2>
+<label for="report">可直接截圖，或複製以下文字</label>
+<textarea id="report" readonly spellcheck="false"></textarea>
+<div class="actions"><button id="copy-report" class="secondary" type="button">複製檢查結果</button><a class="button" href="./index.html">返回遊戲</a></div>
+<p id="copy-status" class="muted" role="status"></p>
+</section>
+<p class="note muted">「收到成功回覆」代表收件程式回報寫入完成；若找不到資料，仍需核對 Apps Script 的 SPREADSHEET_ID，以及「作答紀錄」分頁。沒有收到回覆時，不能直接認定資料已寫入或未寫入。</p>
+<footer>一起找到方法｜合理調整情境遊戲 · 設計者：國家教育研究院 黃彥融副研究員</footer>
+</main>
+<script>
+(function(){
+'use strict';
+const EXPECTED_ENDPOINT='https://script.google.com/macros/s/AKfycbynan6Tai4pIJLRRYGv8WoeBj0I8SEAI8UNLE94gZwPp1dVMBi-yujTT38PS3exo7jQ8w/exec';
+const el=id=>document.getElementById(id);
+const checks=new Map();
+let payload=null,busy=false,confirmed=false,latest='尚未送出',testTime='',lastFrame=null;
+const cacheTag=String(Date.now());
+function report(){
+ const lines=['合理調整遊戲｜串接檢查 CHECK 1.0','頁面：'+location.origin+location.pathname,'時間：'+new Date().toLocaleString('zh-TW',{timeZone:'Asia/Taipei',hour12:false})];
+ checks.forEach(row=>lines.push(row.title+'：'+row.text));
+ if(payload){lines.push('測試作答編號：'+payload.record.play_id,'測試稱呼：串接測試','測試紀錄類型：測試');}
+ if(testTime)lines.push('最近送出時間（臺北）：'+testTime);
+ lines.push('收件結果：'+latest);
+ el('report').value=lines.join('\n');
+}
+function check(key,title,text,kind){
+ let row=checks.get(key);
+ if(!row){const box=document.createElement('div'),dt=document.createElement('dt'),dd=document.createElement('dd');box.className='check';box.append(dt,dd);el('checks').append(box);row={box,dt,dd};}
+ Object.assign(row,{title,text,kind});row.dt.textContent=title;row.dd.textContent=text;row.dd.className=kind||'pending';checks.set(key,row);report();
+}
+function result(text){latest=text;el('result').textContent=text;report();}
+function endpointValid(value){try{const u=new URL(value);return u.protocol==='https:'&&u.hostname==='script.google.com'&&/^\/macros\/s\/[\w-]+\/exec$/.test(u.pathname)&&!u.search&&!u.hash;}catch(_){return false;}}
+function googleOrigin(origin){try{const u=new URL(origin);return u.protocol==='https:'&&(u.hostname==='script.google.com'||u.hostname==='script.googleusercontent.com'||/^[a-z0-9-]+-script\.googleusercontent\.com$/.test(u.hostname));}catch(_){return false;}}
+function uid(){if(window.crypto&&window.crypto.randomUUID)return window.crypto.randomUUID();const a=new Uint8Array(16);window.crypto.getRandomValues(a);return Array.from(a,x=>x.toString(16).padStart(2,'0')).join('');}
+function script(file){return new Promise((resolve,reject)=>{const s=document.createElement('script');let settled=false;const done=ok=>{if(settled)return;settled=true;clearTimeout(timer);ok?resolve():reject(new Error(file+' 載入失敗或逾時'));};const timer=setTimeout(()=>done(false),12000);s.src='./'+file+'?connection_check='+cacheTag;s.onload=()=>done(true);s.onerror=()=>done(false);document.head.append(s);});}
+async function pageStructure(){
+ const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),10000);
+ try{
+  const r=await fetch('./index.html?connection_check='+cacheTag,{cache:'no-store',signal:controller.signal});
+  if(!r.ok)throw new Error('HTTP '+r.status);
+  const html=await r.text(),doc=new DOMParser().parseFromString(html,'text/html');
+  const scripts=Array.from(doc.querySelectorAll('script'));
+  const files=scripts.map(s=>{try{return s.src?new URL(s.getAttribute('src'),location.href).pathname.split('/').pop():'';}catch(_){return '';}});
+  const required=['config.js','content.js','logic.js','game.js'];
+  const missing=required.filter(f=>!files.includes(f));
+  const inlineConfig=scripts.some(s=>!s.getAttribute('src')&&/window\.RA_CONFIG\s*=/.test(s.textContent));
+  if(missing.length){check('page','遊戲首頁載入方式','首頁沒有引用：'+missing.join('、')+(inlineConfig?'。偵測到內嵌設定，可能上傳了單檔試玩版；旁邊的 config.js 不會自動覆蓋內嵌設定。':'。請核對上線的 index.html。'),'bad');}
+  else if(inlineConfig){check('page','遊戲首頁載入方式','首頁同時引用 config.js 與內嵌設定，可能相互覆蓋，需要核對 index.html。','warn');}
+  else if(required.some((f,i)=>i>0&&files.indexOf(required[i-1])>files.indexOf(f))||scripts.some(s=>required.includes(new URL(s.getAttribute('src')||'.',location.href).pathname.split('/').pop())&&s.hasAttribute('async'))){check('page','遊戲首頁載入方式','四個程式檔都存在，但載入順序或 async 設定需要檢查。','warn');}
+  else check('page','遊戲首頁載入方式','首頁依序引用 config.js、content.js、logic.js、game.js。','ok');
+ }catch(error){check('page','遊戲首頁載入方式','未能讀取首頁：'+error.message+'。仍可單獨測試收件。','warn');}
+ finally{clearTimeout(timer);}
+}
+function makeTestPayload(){
+ const D=window.RA_DATA,L=window.RA_LOGIC;
+ const state={id:uid(),profile:L.cleanProfile({nickname:'串接測試'}),intro:Object.fromEntries(D.students.map(s=>[s.id,D.introOptions[0].id])),answers:Object.fromEntries(L.questions.map(q=>[q.id,q.options[0].id])),revealed:Object.fromEntries(L.questions.map(q=>[q.id,true])),hints:Object.fromEntries(D.cases.map(c=>[c.id,[]])),reflections:{reflection_self:'系統串接測試，非教師省思。',feedback:'系統串接測試，非教師意見；請在整理正式資料時排除此列。'},completedAt:new Date().toISOString(),batch:'網站串接檢查'};
+ return L.payload(state,{recordType:'測試'});
+}
+async function initialize(){
+ el('required-origin').textContent=location.origin;
+ if(location.protocol!=='https:'){
+  check('origin','開啟位置','請先把 connection-check.html 上傳到與 index.html 相同的 GitHub 資料夾，再使用網站 HTTPS 網址開啟。','bad');
+  result('目前不是網站 HTTPS 頁面；尚未載入遊戲設定，也未送出資料。');return;
+ }
+ check('origin','開啟位置',location.origin+'（請與 ALLOWED_ORIGINS 核對）','ok');
+ const structure=pageStructure();
+ try{
+  check('config','設定檔','正在載入 config.js…','pending');
+  await script('config.js');
+  const C=window.RA_CONFIG;
+  if(!C||typeof C!=='object')throw new Error('config.js 沒有提供 window.RA_CONFIG。請使用這版遊戲附的設定檔。');
+  check('config','設定檔','已載入 window.RA_CONFIG。遊戲設定的紀錄類型：'+String(C.recordType||'未指定')+'；本頁固定使用「測試」。','ok');
+  if(!endpointValid(C.endpoint)){
+   check('endpoint','收件網址',C.endpoint?'網址格式不符，須為 https://script.google.com/macros/s/部署ID/exec。':'收件網址為空白；這份設定會讓遊戲維持體驗模式。','bad');
+   throw new Error('收件網址尚未就緒。');
+  }
+  check('endpoint','收件網址',C.endpoint+(C.endpoint===EXPECTED_ENDPOINT?'\n與本次提供的部署網址一致。':'\n與先前提供的部署網址不同，請確認是否已更換部署。'),C.endpoint===EXPECTED_ENDPOINT?'ok':'warn');
+  check('logic','遊戲資料','正在載入 content.js 與 logic.js…','pending');
+  await script('content.js');await script('logic.js');
+  if(!window.RA_DATA||!window.RA_LOGIC)throw new Error('遊戲資料或邏輯未正確載入。');
+  payload=makeTestPayload();
+  if(Object.keys(payload.record).length!==36)throw new Error('資料欄位數不是預期的 36 欄。');
+  check('logic','遊戲資料','版本 '+window.RA_DATA.version+'；已準備 36 欄測試資料。','ok');
+  el('send-test').disabled=false;
+  result('設定已載入，尚未送出。請按「送出一筆測試紀錄」，等候收件結果。');
+ }catch(error){check('ready','準備狀態',String(error.message),'bad');result('尚未送出。請把上方檢查結果截圖或複製回傳。');}
+ await structure;report();
+}
+function send(){
+ if(busy||confirmed||!payload)return;
+ busy=true;el('send-test').disabled=true;el('send-test').textContent='正在等候收件回覆…';
+ el('reply-details').hidden=true;el('reply-details').open=false;
+ if(lastFrame){lastFrame.remove();lastFrame=null;}
+ const nonce=uid(),frame=document.createElement('iframe'),form=document.createElement('form');
+ frame.name='ra-check-'+nonce;frame.title='本次測試的收件端回覆';lastFrame=frame;el('reply-frame').append(frame);
+ form.method='POST';form.action=window.RA_CONFIG.endpoint;form.target=frame.name;form.hidden=true;form.acceptCharset='UTF-8';
+ const values={payload:JSON.stringify(payload),nonce:nonce,reply_origin:location.origin};
+ Object.keys(values).forEach(key=>{const input=document.createElement('input');input.type='hidden';input.name=key;input.value=values[key];form.append(input);});document.body.append(form);
+ const timeout=Math.min(60000,Math.max(15000,Number(window.RA_CONFIG.requestTimeoutMs)||25000));
+ let ended=false;
+ function finish(kind){
+  if(ended)return;ended=true;clearTimeout(timer);window.removeEventListener('message',received);form.remove();busy=false;
+  if(kind==='success'){
+   confirmed=true;el('send-test').disabled=true;el('send-test').textContent='已收到成功回覆';frame.remove();lastFrame=null;
+   result('已收到成功回覆：收件程式回報測試紀錄已寫入。\n請到「作答紀錄」分頁，查找稱呼「串接測試」、紀錄類型「測試」。\n作答編號：'+payload.record.play_id+'\n若遊戲本身仍收不到資料，請將本頁與遊戲結果頁的訊息一併回傳。');
+  }else{
+   el('send-test').disabled=false;el('send-test').textContent='使用相同編號重試';el('reply-details').hidden=false;
+   if(kind==='rejected')result('收件端已回覆，但回報未完成寫入。\n請在 Apps Script「執行項目」查看這次 doPost 的詳細紀錄，再回傳錯誤文字。');
+   else if(kind==='submit')result('瀏覽器未能完成表單送出。\n請回傳這份檢查結果；不能據此判定試算表是否已收到資料。');
+   else result('等待 '+Math.round(timeout/1000)+' 秒後，仍未取得有效的收件確認。\n這不代表一定沒有寫入。請先查試算表與 Apps Script 的 doPost 紀錄。\n也可展開下方「查看收件頁面回覆」，確認是否出現存取或登入提示。');
+  }
+ }
+ function received(event){const d=event.data;if(!googleOrigin(event.origin)||!d||d.type!=='ra-game-receipt'||d.id!==payload.record.play_id||d.nonce!==nonce)return;finish(d.ok===true?'success':'rejected');}
+ const timer=setTimeout(()=>finish('timeout'),timeout);
+ window.addEventListener('message',received);
+ testTime=new Date().toLocaleString('zh-TW',{timeZone:'Asia/Taipei',hour12:false});result('正在送出測試紀錄，最多等候 '+Math.round(timeout/1000)+' 秒。\n作答編號：'+payload.record.play_id);
+ try{form.submit();}catch(_){finish('submit');}
+}
+el('send-test').addEventListener('click',send);
+el('copy-report').addEventListener('click',async()=>{
+ try{await navigator.clipboard.writeText(el('report').value);el('copy-status').textContent='已複製，可直接貼回對話。';}
+ catch(_){el('report').focus();el('report').select();el('copy-status').textContent='已選取檢查結果，請使用複製功能，或直接截圖。';}
+});
+initialize();
+})();
+</script>
+</body>
+</html>
