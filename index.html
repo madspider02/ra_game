@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#173e3c">
+  <meta name="description" content="走進三個教育現場情境，練習合理調整的研判，帶走你的合理調整行動卡。設計者：國家教育研究院 黃彥融副研究員。">
+  <title>一起找到方法｜合理調整情境遊戲</title>
+  <link rel="icon" href="./icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="./styles.css">
+  <script defer src="./config.js"></script>
+  <script defer src="./content.js"></script>
+  <script defer src="./logic.js"></script>
+  <script defer src="./game.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">跳到主要內容</a>
+  <header class="site-header">
+    <a class="brand" href="./index.html" aria-label="一起找到方法 首頁"><span class="brand-mark" aria-hidden="true">↗</span><span>一起找到方法<small>合理調整情境遊戲</small></span></a>
+    <button class="btn btn-light guide-open" data-guide="S1" type="button"><span aria-hidden="true">▤</span> 指引小抄</button>
+  </header>
+  <div id="progress-wrap"></div>
+  <main id="main" tabindex="-1"></main>
+  <footer class="site-footer"><span>設計者：國家教育研究院 黃彥融副研究員</span><span>依教育部 114 年 12 月指引草案（研習用）設計</span></footer>
+  <dialog id="guide-dialog" aria-labelledby="guide-heading"><div id="guide-content"></div></dialog>
+  <dialog id="restart-dialog" aria-labelledby="restart-heading"><div class="dialog-pad"><p class="eyebrow">重新出發</p><h2 id="restart-heading">開始一次新的練習？</h2><p>本分頁的作答會清除。已送出的意見紀錄會保留，重玩會使用新的作答編號。</p><div class="button-row"><button class="btn btn-light" id="cancel-restart">保留目前進度</button><button class="btn btn-primary" id="confirm-restart">重新開始</button></div></div></dialog>
+  <div id="announcer" class="sr-only" role="status" aria-live="polite"></div>
+  <noscript><p class="noscript">請開啟瀏覽器的 JavaScript，才能進行這個互動遊戲。</p></noscript>
+</body>
+</html>
