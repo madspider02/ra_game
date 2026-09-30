@@ -27,9 +27,19 @@
     const top=ranked.slice(0,2), watch=Object.keys(watches).sort((a,b)=>watches[b]-watches[a])[0];
     return {theme:themes[top[0]].name,values:top.map(k=>themes[k].value),actions:[...new Set([...top.map(k=>themes[k].action),'約定負責人與追蹤時間，回看調整是否改善參與。'])].slice(0,3),next:reminders[watch]||'持續把學生的實際參與帶回討論，也為每項措施安排追蹤與檢討。'};
   }
-  function cleanProfile(p){const result={};D.profile.forEach(f=>{const v=p&&p[f.key];if(f.kind==='text')result[f.key]=typeof v==='string'?v.slice(0,20):'';else if(f.kind==='multi'){let list=Array.isArray(v)?[...new Set(v.filter(x=>f.options.includes(x)))]:[];const exclusive=list.find(x=>['目前未服務','不願透露'].includes(x));result[f.key]=exclusive?[exclusive]:list;}else result[f.key]=f.options.includes(v)?v:'';});return result;}
+  function cleanProfile(p){const result={};D.profile.forEach(f=>{const v=p&&p[f.key];if(f.kind==='text')result[f.key]=typeof v==='string'?v.trim().slice(0,20):'';else if(f.kind==='multi'){let list=Array.isArray(v)?[...new Set(v.filter(x=>f.options.includes(x)))]:[];const exclusive=list.find(x=>['目前未服務','不願透露'].includes(x));result[f.key]=exclusive?[exclusive]:list;}else result[f.key]=f.options.includes(v)?v:'';});return result;}
+  function profileErrors(profile){
+    const p=cleanProfile(profile),errors={};
+    D.profile.forEach(f=>{
+      if(p[f.key].length)return;
+      errors[f.key]=f.kind==='text'?'請填寫希望的稱呼，暱稱即可。':f.kind==='multi'?'請至少勾選一項服務身分。':`請選擇${f.label}。`;
+    });
+    return errors;
+  }
+  function profileReady(profile){return Object.keys(profileErrors(profile)).length===0;}
   function ready(state){return D.students.every(s=>D.introOptions.some(o=>o.id===state.intro[s.id]))&&questions.every(q=>selection(q,state)&&state.revealed[q.id]);}
   function payload(state,config){
+    if(!profileReady(state.profile))throw new Error('請先完成八項背景資料');
     if(!ready(state))throw new Error('尚有情境未完成');
     const card=makeCard(state),p=cleanProfile(state.profile),record={play_id:state.id,completed_at:state.completedAt,game_version:D.version,guideline_version:D.guidelineVersion,collection_batch:String(state.batch||'').slice(0,60),record_type:config.recordType==='正式'?'正式':'測試',...p,roles:p.roles.join(' | ')};
     D.students.forEach(s=>record[s.id]=state.intro[s.id]);questions.forEach(q=>record[q.id]=state.answers[q.id]);
@@ -38,5 +48,5 @@
     Object.assign(record,{card_theme:card.theme,card_values:card.values.join('\n'),card_actions:card.actions.join('\n'),card_next_step:card.next});
     return {schema_version:1,record};
   }
-  const api={questions,fields,makeCard,cleanProfile,ready,payload,selection};root.RA_LOGIC=api;if(typeof module!=='undefined'&&module.exports)module.exports=api;
+  const api={questions,fields,makeCard,cleanProfile,profileErrors,profileReady,ready,payload,selection};root.RA_LOGIC=api;if(typeof module!=='undefined'&&module.exports)module.exports=api;
 })(typeof window!=='undefined'?window:globalThis);

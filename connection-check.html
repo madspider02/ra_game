@@ -11,7 +11,7 @@
 </head>
 <body>
 <main>
-<p class="eyebrow">管理者工具 · CHECK 1.0</p>
+<p class="eyebrow">管理者工具 · CHECK 1.1</p>
 <h1>合理調整遊戲<br>串接檢查</h1>
 <p>不用重玩遊戲，也不用開主控台。這頁會檢查同一資料夾的設定與程式；按下測試按鈕，才會送出一筆測試紀錄。</p>
 <section class="panel" aria-labelledby="settings-heading">
@@ -22,7 +22,7 @@
 </section>
 <section class="panel" aria-labelledby="send-heading">
 <h2 id="send-heading">2. 送出一筆測試</h2>
-<p>稱呼固定為「串接測試」、紀錄類型固定為「測試」，其餘背景留白。案例選擇由程式填入，省思及意見會註明為測試資料。</p>
+<p>稱呼固定為「串接測試」、紀錄類型固定為「測試」，其餘背景固定使用「不願透露」的模擬選項，不代表任何真實玩家。案例選擇由程式填入，省思及意見會註明為測試資料。</p>
 <p class="muted">同一頁重試會使用相同作答編號。請等本次結果出現後，再決定是否重試。</p>
 <button id="send-test" type="button" disabled>送出一筆測試紀錄</button>
 <div id="result" class="result" role="status" aria-live="polite">正在檢查設定，尚未送出。</div>
@@ -47,7 +47,7 @@ const checks=new Map();
 let payload=null,busy=false,confirmed=false,latest='尚未送出',testTime='',lastFrame=null;
 const cacheTag=String(Date.now());
 function report(){
- const lines=['合理調整遊戲｜串接檢查 CHECK 1.0','頁面：'+location.origin+location.pathname,'時間：'+new Date().toLocaleString('zh-TW',{timeZone:'Asia/Taipei',hour12:false})];
+ const lines=['合理調整遊戲｜串接檢查 CHECK 1.1','頁面：'+location.origin+location.pathname,'時間：'+new Date().toLocaleString('zh-TW',{timeZone:'Asia/Taipei',hour12:false})];
  checks.forEach(row=>lines.push(row.title+'：'+row.text));
  if(payload){lines.push('測試作答編號：'+payload.record.play_id,'測試稱呼：串接測試','測試紀錄類型：測試');}
  if(testTime)lines.push('最近送出時間（臺北）：'+testTime);
@@ -84,7 +84,7 @@ async function pageStructure(){
 }
 function makeTestPayload(){
  const D=window.RA_DATA,L=window.RA_LOGIC;
- const state={id:uid(),profile:L.cleanProfile({nickname:'串接測試'}),intro:Object.fromEntries(D.students.map(s=>[s.id,D.introOptions[0].id])),answers:Object.fromEntries(L.questions.map(q=>[q.id,q.options[0].id])),revealed:Object.fromEntries(L.questions.map(q=>[q.id,true])),hints:Object.fromEntries(D.cases.map(c=>[c.id,[]])),reflections:{reflection_self:'系統串接測試，非教師省思。',feedback:'系統串接測試，非教師意見；請在整理正式資料時排除此列。'},completedAt:new Date().toISOString(),batch:'網站串接檢查'};
+ const state={id:uid(),profile:L.cleanProfile(Object.fromEntries(D.profile.map(f=>[f.key,f.kind==='text'?'串接測試':f.kind==='multi'?['不願透露']:'不願透露']))),intro:Object.fromEntries(D.students.map(s=>[s.id,D.introOptions[0].id])),answers:Object.fromEntries(L.questions.map(q=>[q.id,q.options[0].id])),revealed:Object.fromEntries(L.questions.map(q=>[q.id,true])),hints:Object.fromEntries(D.cases.map(c=>[c.id,[]])),reflections:{reflection_self:'系統串接測試，非教師省思。',feedback:'系統串接測試，非教師意見；請在整理正式資料時排除此列。'},completedAt:new Date().toISOString(),batch:'網站串接檢查'};
  return L.payload(state,{recordType:'測試'});
 }
 async function initialize(){
